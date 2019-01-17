@@ -35,6 +35,7 @@ from io import StringIO
 import numpy as np
 import pandas as pd
 import os
+import re
 
 #creates an object from an RSS link of a craigslist search
 feed2 = feedparser.parse('https://minneapolis.craigslist.org/search/mca?format=rss&max_engine_displacement_cc=1200&min_engine_displacement_cc=150&query=motorcycle&sort=rel')
@@ -53,7 +54,7 @@ soup_test = BeautifulSoup(download.content, 'html.parser')
 adtitle = soup_test.find('title').text
 
 #pulls the uniqueu id CL assigns to the ad url to use as a primary key
-motoid = feed2.entries[2].id[65:-5]
+motoid = re.search(r'(\d*)(.html)', feed2.entries[2].id).group(1)
 
 #gets the working python directory, and appends the new folder name
 pathname = os.getcwd()
@@ -66,6 +67,7 @@ if not os.path.exists(pathname):
     os.makedirs(pathname)
     print('creation success')
 
+
 #counter to number pictures
 imgcount = 0
 
@@ -77,18 +79,15 @@ for img in soup_test.select('a.thumb'):
         response = requests.get(img['href'])
         f.write(response.content)
 
+
 #finds the listed motorcycle attributes (ie vin, engine size, mileage . . .)
 clipping = soup_test.find('p','attrgroup')
+print(clipping)
 
-#initilize a list which will have entries appended
-#motorcycle = [['garb','condition','engine','fuel','odometer','color','title','transmission']]
-
-#for the time being, motorcycle will be innitialized as an empty list
-motorcycle = []
-
+#initilize a new list starting with the unique page id, then appending stats as we scrape them
+motorcycle = [motoid]
+motorcycle.append(clipping.text[1:-2])
 for p in soup_test.find_all('p','attrgroup'):
-    print(innn)
-    #print(p.text)
     clipping = p.text
     try:
         if child.name == 'span':
@@ -97,29 +96,41 @@ for p in soup_test.find_all('p','attrgroup'):
 print(clipping)
 
 '''
-this is coding to grab the stats of the motorcycle and append it to a table
+this is coding to grab the stats of the motorcycle and append it to a list.
 the if statements account for not all information being present in all ads
-due to this variability a different method of pulling data will eventually
-have to be implemented to decrease exceptions and bad data.
-
-clipping = clipping.split(':')
-
-#first, we overwrite the garbage pull with the ID#
-clipping[0] = feed2.entries[1].id[-15:]
-if len(clipping) > 1:
-    clipping[1] = clipping[1][1:-26]
-if len(clipping) > 2:
-    clipping[2] = clipping[2][1:-5]
-if len(clipping) > 3:
-    clipping[3] = clipping[3][1:-9]
-if len(clipping) > 4:
-    clipping[4] = clipping[4][1:-13]
-if len(clipping) > 5:
-    clipping[5] = clipping[5][1:-14]
-if len(clipping) > 6:
-    clipping[6] = clipping[6][1:-14]
 '''
 
-motorcycle.append(clipping)
-print(motorcycle)
+if re.search(r'([(]CC[)]: )', clipping):
+    motorcycle.append(re.search(r'([(]CC[)]: )(\d*)', clipping).group(2))
+else:
+    motorcycle.append(re.match(r'([(]CC[)]: )', clipping))
 
+if re.search(r'(condition)', clipping):
+    motorcycle.append(re.search(r'(condition: )(\w*)', clipping).group(2))
+else:
+    motorcycle.append(re.match(r'(condition)', clipping))
+
+if re.search(r'(odometer:)', clipping):
+    motorcycle.append(re.search(r'(odometer: )(\d*)', clipping).group(2))
+else:
+    motorcycle.append(re.match(r'(odometer)', clipping))
+
+if re.search(r'(VIN:)', clipping):
+    motorcycle.append(re.search(r'(VIN: )(\w*)', clipping).group(2))
+else:
+    motorcycle.append(re.match(r'(VIN:)', clipping))
+
+if re.search(r'(color:)', clipping):
+    motorcycle.append(re.search(r'(color: )(\w*)', clipping).group(2))
+else:
+    motorcycle.append(re.match(r'(color:)', clipping))
+
+if re.search(r'(status:)', clipping):
+    motorcycle.append(re.search(r'(status: )(\w*)', clipping).group(2))
+else:
+    motorcycle.append(re.match(r'(status:)', clipping))
+
+print(feed2.entries[1].id)
+#if regex grabs are within a loop, precompiling will save computational time
+
+print(motorcycle)
